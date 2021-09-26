@@ -5,14 +5,19 @@ import Cassette
 import Enzyme
 using Requires
 
-@inline function Cassette.overdub(::CPUCtx, ::typeof(Enzyme.autodiff_no_cassette), f, args...)
+@inline function Cassette.overdub(::CPUCtx, ::typeof(Enzyme.autodiff_deferred), f, annotation::Enzyme.Annotation, args...)
     f′ = (args...) -> (Base.@_inline_meta; Cassette.overdub(CPUCTX, f, args...))
-    Enzyme.autodiff_no_cassette(f′, args...)
+    Enzyme.autodiff_deferred(f′, annotation, args...)
+end
+
+@inline function Cassette.overdub(::CPUCtx, ::typeof(Enzyme.autodiff_deferred), f, args...)
+    f′ = (args...) -> (Base.@_inline_meta; Cassette.overdub(CPUCTX, f, args...))
+    Enzyme.autodiff_deferred(f′, args...)
 end
 
 function Enzyme.autodiff(kernel::Kernel{<:Any, <:Any, <:Any, Fun}) where Fun
     function df(ctx, args...)
-        Enzyme.autodiff_no_cassette(kernel.f, ctx, args...)
+        Enzyme.autodiff_deferred(kernel.f, Const, ctx, args...)
     end
     similar(kernel, df)
 end
